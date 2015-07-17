@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>redis 缓存、java读取缓存 by freesnowflake</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='http://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">redis 缓存、java读取缓存</h1>
+      <h2 class="project-tagline">漫野博客</h2>
+      <a href="https://github.com/freesnowflake/snowflake.github.io" class="btn">View on GitHub</a>
+      <a href="https://github.com/freesnowflake/snowflake.github.io/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/freesnowflake/snowflake.github.io/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <p>redis 是一个key/value 的存储系统，与Memcached 类似是一种NOSQL型数据库，redis是讲数据持久化的存储于磁盘上，解决了突然断电、系统重启等造成数据丢失的问题，redis 支持string,map,set,list,orderdlist .并且这些数据类型都支持push/pop ,add/remove及取交集、并集、差集都操作。
+redis 的操作都是原子性，这样保证两个客户端同时操作，能够确保获取到的都是最新的值。</p>
+
+<p>redis 相对于其他同类型数据的优势：
+    1.redis将数据完成存储于内存中，存储磁盘只用于持久化，读取速度非常快，每秒11万集合
+    2.redis支持更为丰富的数据类型
+    3.redis 支持将数据向一台或多台服务器进行传输</p>
+
+<p>环境搭建</p>
+
+<p>先去官网下载源码：</p>
+
+<p>wget <a href="http://redis.googlecode.com/files/redis-2.4.6.tar.gz">http://redis.googlecode.com/files/redis-2.4.6.tar.gz</a></p>
+
+<p>解压：</p>
+
+<p>tar –zxvf redis-2.4.6.tar.gz</p>
+
+<p>编译</p>
+
+<p>需要说明的事，redis的安装非常简单，已经有现成的Makefile文件，直接运行make命令即可。</p>
+
+<p>make</p>
+
+<p>make install</p>
+
+<p>Redis 由四个可执行文件：redis-benchmark、redis-cli、redis-server、redis-stat 这四个文件，加上一个redis.conf就构成了整个redis的最终可用包。它们的作用如下：</p>
+
+<p>redis-server：Redis服务器的daemon启动程序
+redis-cli：Redis命令行操作工具。当然，你也可以用telnet根据其纯文本协议来操作
+redis-benchmark：Redis性能测试工具，测试Redis在你的系统及你的配置下的读写性能
+redis-stat：Redis状态检测工具，可以检测Redis当前状态参数及延迟状况
+现在就可以启动redis了，redis只有一个启动参数，就是他的配置文件路径。</p>
+
+<p>redis-server /etc/redis.conf</p>
+
+<p>注意，默认复制过去的redis.conf文件的daemonize参数为no，所以redis不会在后台运行，这时要测试，我们需要重新开一个终端。修改为yes则为后台运行redis。另外配置文件中规定了pid文件，log文件和数据文件的地址，如果有需要先修改，默认log信息定向到stdout.</p>
+
+<p>下面是redis.conf的主要配置参数的意义：</p>
+
+<p>daemonize：是否以后台daemon方式运行
+pidfile：pid文件位置
+port：监听的端口号
+timeout：请求超时时间
+loglevel：log信息级别
+logfile：log文件位置
+databases：开启数据库的数量
+save * <em>：保存快照的频率，第一个</em>表示多长时间，第三个*表示执行多少次写操作。在一定时间内执行一定数量的写操作时，自动保存快照。可设置多个条件。
+rdbcompression：是否使用压缩
+dbfilename：数据快照文件名（只是文件名，不包括目录）
+dir：数据快照的保存目录（这个是目录）
+appendonly：是否开启appendonlylog，开启的话每次写操作会记一条log，这会提高数据抗风险能力，但影响效率。
+appendfsync：appendonlylog如何同步到磁盘（三个选项，分别是每次写都强制调用fsync、每秒启用一次fsync、不调用fsync等待系统自己同步）</p>
+
+<p>redis 常用命令：参考<a href="https://redis.readthedocs.org/en/redirect-to-RedisDoc.com/">https://redis.readthedocs.org/en/redirect-to-RedisDoc.com/</a>
+1、键值相关命令</p>
+
+<pre><code>  keys * 取出当前所有的key
+
+  exists name 查看n是否有name这个key
+
+  del name 删除key name
+
+  expire confirm 100 设置confirm这个key100秒过期
+
+  ttl confirm 获取confirm 这个key的有效时长
+
+  select 0 选择到0数据库 redis默认的数据库是0~15一共16个数据库
+
+  move confirm 1 将当前数据库中的key移动到其他的数据库中，这里就是把confire这个key从当前数据库中移动到1中
+
+  persist confirm 移除confirm这个key的过期时间
+
+  randomkey 随机返回数据库里面的一个key
+
+  rename key2 key3 重命名key2 为key3
+
+  type key2 返回key的数据类型
+</code></pre>
+
+<p>2、服务器相关命令</p>
+
+<pre><code>  ping PONG返回响应是否连接成功
+
+  echo 在命令行打印一些内容
+
+  select 0~15 编号的数据库
+
+  quit  /exit 退出客户端
+
+  dbsize 返回当前数据库中所有key的数量
+
+  info 返回redis的相关信息
+
+  config get dir/* 实时传储收到的请求
+
+  flushdb 删除当前选择数据库中的所有key
+
+  flushall 删除所有数据库中的数据库
+</code></pre>
+
+<p>4.redis数据结构</p>
+
+<p>redis 的作者antirez曾称其为一个数据结构服务器（data structures server），这是一个非常准确的表述，redis的所有功能就是将数据以其固有的几种结构保存，并提供给用户操作这几种结构的接口。我们可以想象我们在各种语言中的那些固有数据类型及其操作。</p>
+
+<p>redis目前提供四种数据类型：string,list,set及zset(sorted set)和Hash。</p>
+
+<p>string是最简单的类型，你可以理解成与Memcached一模一个的类型，一个key对应一个value，其上支持的操作与Memcached的操作类似。但它的功能更丰富。
+list是一个链表结构，主要功能是push、pop、获取一个范围的所有值等等。操作中key理解为链表的名字。
+set是集合，和我们数学中的集合概念相似，对集合的操作有添加删除元素，有对多个集合求交并差等操作。操作中key理解为集合的名字。
+zset是set的一个升级版本，他在set的基础上增加了一个顺序属性，这一属性在添加修改元素的时候可以指定，每次指定后，zset会自动重新按新的值调整顺序。可以理解了有两列的mysql表，一列存value，一列存顺序。操作中key理解为zset的名字。
+Hash数据类型允许用户用Redis存储对象类型,Hash数据类型的一个重要优点是,当你存储的数据对象只有很少几个key值时,数据存储的内存消耗会很小.更多关于Hash数据类型的说明请见: <a href="http://code.google.com/p/redis/wiki/Hashes">http://code.google.com/p/redis/wiki/Hashes</a>
+在官网上给出了所有支持的接口列表，并副副附有详细的介绍，地址：</p>
+
+<p><a href="http://code.google.com/p/redis/wiki/CommandReference">http://code.google.com/p/redis/wiki/CommandReference</a></p>
+
+<p>另外，作者还提供了一个非常贴心的web命令行模拟页面，供初学者试用redis，地址：</p>
+
+<p><a href="http://try.redis-db.com/">http://try.redis-db.com/</a></p>
+
+<p>5.redis数据存储</p>
+
+<p>redis的存储分为内存存储、磁盘存储和log文件三部分，配置文件中有三个参数对其进行配置。</p>
+
+<p>save seconds updates，save配置，指出在多长时间内，有多少次更新操作，就将数据同步到数据文件。这个可以多个条件配合，比如默认配置文件中的设置，就设置了三个条件。</p>
+
+<p>appendonly yes/no ，appendonly配置，指出是否在每次更新操作后进行日志记录，如果不开启，可能会在断电时导致一段时间内的数据丢失。因为redis本身同步数据文件是按上面的save条件来同步的，所以有的数据会在一段时间内只存在于内存中。</p>
+
+<p>appendfsync no/always/everysec ，appendfsync配置，no表示等操作系统进行数据缓存同步到磁盘，always表示每次更新操作后手动调用fsync()将数据写到磁盘，everysec表示每秒同步一次。</p>
+
+<p>6.redis主从配置</p>
+
+<p>redis支持master-slave的主从配置，配置方法是在从机的配置文件中指定slaveof参数为主机的ip和port即可</p>
+
+<p>7 java读取redis</p>
+
+<ol>
+<li>
+<p>Jedis
+public class JedisUtil {
+public static Jedis createJedis() {
+    Jedis jedis = new Jedis("127.0.0.1");
+    return jedis;
+}</p>
+
+<p>public static Jedis createJedis(String host, int port) {
+    Jedis jedis = new Jedis(host, port);</p>
+
+<pre><code>return jedis;
+</code></pre>
+
+<p>}
+public static Jedis createJedis(String host, int port, String passwrod) {
+    Jedis jedis = new Jedis(host, port);</p>
+
+<pre><code>if (!StringUtils.isNotBlank(passwrod))
+    jedis.auth(passwrod);
+
+return jedis;
+</code></pre>
+
+<p>}</p>
+
+<p>public static void main(String[] args) {
+    Jedis jedis =createJedis("dev.shell.paas.alipay.net",6379);
+    jedis.set("testkey", "testValue");
+    System.err.println(jedis.get("testkey"));
+}
+}</p>
+</li>
+</ol>
+
+<p>2.spring-data-redis </p>
+
+<p>1.导入jar包
+    
+                redis.clients
+                jedis
+                2.0.0
+            </p>
+
+<pre><code>        &lt;dependency&gt;  
+            &lt;groupId&gt;org.springframework.data&lt;/groupId&gt;  
+            &lt;artifactId&gt;spring-data-redis&lt;/artifactId&gt;  
+            &lt;version&gt;1.0.0.RELEASE&lt;/version&gt;  
+        &lt;/dependency&gt;  
+
+        &lt;dependency&gt;  
+            &lt;groupId&gt;org.springframework.data&lt;/groupId&gt;  
+            &lt;artifactId&gt;spring-data-redis&lt;/artifactId&gt;  
+            &lt;version&gt;1.0.0.RELEASE&lt;/version&gt; 
+            &lt;classifier&gt;sources&lt;/classifier&gt; 
+        &lt;/dependency&gt;  
+</code></pre>
+
+<ol>
+<li> 配置
+      
+    
+    
+    
+    
+
+&lt;!-- Jedis ConnectionFactory 数据库连接配置 --&gt;
+
+    
+    
+    
+    
+
+&lt;!-- redisTemplate配置，redisTemplate是对Jedis的对redis操作的扩展，有更多的操作，封装使操作更便捷 --&gt;
+
+    
+</li>
+</ol>
+
+<p>8.redis起步(链接整理)</p>
+
+<p>项目首页，下方是各种语言支持列表：</p>
+
+<p><a href="http://code.google.com/p/redis/">http://code.google.com/p/redis/</a></p>
+
+<p>作者在wiki中给出了一个非常好的例子，以使我们可以快速上手，地址：</p>
+
+<p><a href="http://code.google.com/p/redis/wiki/TwitterAlikeExample">http://code.google.com/p/redis/wiki/TwitterAlikeExample</a></p>
+
+<p>同时作者推荐的另一个教程，地址：</p>
+
+<p><a href="http://labs.alcacoop.it/doku.php?id=articles:redis_land">http://labs.alcacoop.it/doku.php?id=articles:redis_land</a></p>
+
+<p>一个redis爱好者创建的相关问题讨论网站：</p>
+
+<p><a href="http://www.rediscookbook.org/">http://www.rediscookbook.org/</a></p>
+
+<p>为什么使用 Redis及其产品定位</p>
+
+<p><a href="http://www.infoq.com/cn/articles/tq-why-choose-redis">http://www.infoq.com/cn/articles/tq-why-choose-redis</a></p>
+
+<p>Redis内存使用优化与存储</p>
+
+<p><a href="http://www.infoq.com/cn/articles/tq-redis-memory-usage-optimization-storage">http://www.infoq.com/cn/articles/tq-redis-memory-usage-optimization-storage</a></p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/freesnowflake/snowflake.github.io">redis 缓存、java读取缓存</a> is maintained by <a href="https://github.com/freesnowflake">freesnowflake</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
+
